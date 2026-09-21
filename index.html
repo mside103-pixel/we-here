@@ -89,6 +89,20 @@ input,textarea{font-family:inherit;color:inherit}
 
 .composer{display:flex;align-items:flex-end;gap:6px;padding:10px 10px calc(10px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--border)}
 #replyPreview{padding:6px 10px;background:var(--surface-2);border-radius:10px;margin:0 10px 6px;font-size:12.5px;display:flex;justify-content:space-between;align-items:center}
+#recordingBar{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;margin:0 10px 6px;background:var(--danger);color:#fff;border-radius:10px;font-size:13px}
+#recordingBar.hidden{display:none}
+.voice-player{display:flex;align-items:center;gap:8px;min-width:170px;padding:2px 0}
+.vp-play{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.row.them .vp-play{background:var(--surface-2)}
+.vp-bar{flex:1;height:4px;background:rgba(255,255,255,.3);border-radius:2px;overflow:hidden}
+.row.them .vp-bar{background:var(--border)}
+.vp-fill{height:100%;width:0%;background:currentColor}
+.vp-time{font-size:11px;opacity:.85;white-space:nowrap}
+.gallery-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.gallery-grid img,.gallery-grid video{width:100%;height:100px;object-fit:cover;border-radius:8px;cursor:pointer}
+.gallery-empty{color:var(--text-2);text-align:center;padding:34px 0;font-size:13px}
+.gallery-voice-row{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border)}
+.gallery-voice-row .vp-time{color:var(--text-2)}
 #textInput{flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:20px;background:var(--surface-2);resize:none;max-height:100px;font-size:14.5px}
 #textInput:focus{outline:none;border-color:var(--primary)}
 .round-btn{width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text-2)}
@@ -157,10 +171,15 @@ input,textarea{font-family:inherit;color:inherit}
     <span id="replyText"></span>
     <button id="replyCancel">✕</button>
   </div>
+  <div id="recordingBar" class="hidden">
+    <span>🔴 Recording <span id="recTimer">0:00</span></span>
+    <button id="cancelRecBtn" class="btn ghost" style="padding:4px 10px;font-size:12px">Cancel</button>
+  </div>
   <div class="composer">
     <button class="round-btn" id="attachBtn">＋</button>
     <input type="file" id="fileInput" accept="image/*,video/*" class="hidden">
     <textarea id="textInput" rows="1" placeholder="Message"></textarea>
+    <button class="round-btn" id="micBtn">🎤</button>
     <button class="round-btn" id="sendBtn">➤</button>
   </div>
 </div>
@@ -173,10 +192,23 @@ input,textarea{font-family:inherit;color:inherit}
   <div class="sheet-item"><span>Theme</span>
     <div class="user-toggle" style="width:140px"><button id="themeLight">Light</button><button id="themeDark">Dark</button></div>
   </div>
+  <div class="sec-title">Media</div>
+  <div class="sheet-item" id="openGallery"><span>Shared media</span><span>›</span></div>
   <div class="sec-title">Chat</div>
   <div class="sheet-item danger" id="clearChatBtn"><span>Clear chat</span><span>🗑</span></div>
   <div class="sec-title">Account</div>
   <div class="sheet-item danger" id="logoutBtn"><span>Logout</span><span>↩</span></div>
+</div></div>
+
+<div class="overlay" id="gallerySheet"><div class="sheet" style="max-height:88vh">
+  <div class="sheet-handle"></div>
+  <h3>Shared media</h3>
+  <div class="user-toggle" style="margin:12px 0">
+    <button class="gtab active" data-t="image">Photos</button>
+    <button class="gtab" data-t="video">Videos</button>
+    <button class="gtab" data-t="voice">Voice</button>
+  </div>
+  <div id="galleryGrid"></div>
 </div></div>
 
 <div class="overlay" id="profileSheet"><div class="sheet">
@@ -201,7 +233,7 @@ input,textarea{font-family:inherit;color:inherit}
   <div class="sheet-item danger" id="deleteFromSheet"><span>Delete for everyone</span><span>🗑</span></div>
 </div></div>
 
-<div id="imgViewer"><button id="closeViewer">✕</button><img id="viewerImg"></div>
+<div id="imgViewer"><button id="closeViewer">✕</button><img id="viewerImg"><video id="viewerVideoEl" controls playsinline class="hidden"></video></div>
 <div id="toast"></div>
 
 <script>
@@ -323,6 +355,8 @@ function renderMessage(m, allMsgs, allReacts){
     vid.controls = true; vid.preload = 'metadata'; vid.playsInline = true;
     vid.onclick=(e)=> e.stopPropagation();
     bubble.appendChild(vid);
+  } else if(m.message_type === 'voice' && m.media_url){
+    bubble.appendChild(buildVoicePlayer(m.media_url, m.duration_seconds));
   } else {
     const txt = document.createElement('div'); txt.textContent = m.content || ''; bubble.appendChild(txt);
   }
@@ -339,6 +373,26 @@ function renderMessage(m, allMsgs, allReacts){
   }
   row.appendChild(wrap);
   return row;
+}
+
+function buildVoicePlayer(url, dur){
+  const wrap = document.createElement('div'); wrap.className='voice-player'; wrap.onclick=e=>e.stopPropagation();
+  const btn = document.createElement('button'); btn.className='vp-play'; btn.textContent='▶';
+  const bar = document.createElement('div'); bar.className='vp-bar';
+  const fill = document.createElement('div'); fill.className='vp-fill'; bar.appendChild(fill);
+  const time = document.createElement('span'); time.className='vp-time'; time.textContent = fmtDur(dur);
+  const audio = new Audio(url);
+  btn.onclick = ()=>{
+    if(audio.paused){ btn.textContent='⏸'; audio.play(); } else { btn.textContent='▶'; audio.pause(); }
+  };
+  audio.ontimeupdate = ()=>{
+    const total = dur || audio.duration || 0;
+    fill.style.width = (total ? audio.currentTime/total*100 : 0)+'%';
+    time.textContent = fmtDur(audio.currentTime)+' / '+fmtDur(total);
+  };
+  audio.onended = ()=>{ btn.textContent='▶'; fill.style.width='0%'; time.textContent=fmtDur(dur); };
+  wrap.append(btn, bar, time);
+  return wrap;
 }
 
 async function markSeen(msgs){
@@ -385,8 +439,90 @@ document.getElementById('fileInput').addEventListener('change', async (e)=>{
   e.target.value = '';
 });
 
-function openViewer(src){ document.getElementById('viewerImg').src=src; document.getElementById('imgViewer').classList.add('show'); }
-document.getElementById('closeViewer').onclick = ()=> document.getElementById('imgViewer').classList.remove('show');
+function fmtDur(s){ s=Math.max(0,Math.floor(s||0)); const m=Math.floor(s/60); const r=s%60; return m+':'+String(r).padStart(2,'0'); }
+// ---- VOICE RECORDING ----
+let mediaRecorder=null, recChunks=[], recStart=0, recTimerInt=null, recStream=null;
+document.getElementById('micBtn').onclick = ()=>{
+  if(mediaRecorder && mediaRecorder.state==='recording'){ stopRecording(true); }
+  else { startRecording(); }
+};
+document.getElementById('cancelRecBtn').onclick = ()=> stopRecording(false);
+async function startRecording(){
+  try{ recStream = await navigator.mediaDevices.getUserMedia({ audio:true }); }
+  catch(err){ toast('Microphone permission denied.'); return; }
+  recChunks = [];
+  mediaRecorder = new MediaRecorder(recStream);
+  mediaRecorder.ondataavailable = e=> recChunks.push(e.data);
+  mediaRecorder.start();
+  recStart = Date.now();
+  document.getElementById('micBtn').textContent = '⏹';
+  document.getElementById('recordingBar').classList.remove('hidden');
+  recTimerInt = setInterval(()=>{ document.getElementById('recTimer').textContent = fmtDur((Date.now()-recStart)/1000); }, 400);
+}
+async function stopRecording(send){
+  if(!mediaRecorder){ return; }
+  const duration = Math.round((Date.now()-recStart)/1000);
+  await new Promise(res=>{ mediaRecorder.onstop=res; mediaRecorder.stop(); });
+  recStream.getTracks().forEach(t=>t.stop());
+  clearInterval(recTimerInt);
+  document.getElementById('micBtn').textContent = '🎤';
+  document.getElementById('recordingBar').classList.add('hidden');
+  const blob = new Blob(recChunks, { type:'audio/webm' });
+  mediaRecorder = null;
+  if(!send || duration < 1) return;
+  toast('Uploading voice message…');
+  const path = `${me.id}/${Date.now()}_voice.webm`;
+  const { error: upErr } = await sb.storage.from('media').upload(path, blob);
+  if(upErr){ toast('Upload failed. Please try again.'); return; }
+  const { data: pub } = sb.storage.from('media').getPublicUrl(path);
+  const { data: newMsg, error: msgErr } = await sb.from('messages')
+    .insert({ sender_id: me.id, message_type:'voice', media_url: pub.publicUrl, duration_seconds: duration, reply_to: replyTarget?replyTarget.id:null })
+    .select().single();
+  if(!msgErr) await sb.from('media').insert({ message_id:newMsg.id, uploader_id:me.id, file_url:pub.publicUrl, media_type:'voice' });
+  clearReply();
+  loadMessages();
+}
+
+// ---- GALLERY ----
+document.getElementById('openGallery').onclick = ()=>{ closeOverlays(); document.getElementById('gallerySheet').classList.add('show'); loadGallery('image'); };
+document.querySelectorAll('.gtab').forEach(t=>{
+  t.onclick = ()=>{ document.querySelectorAll('.gtab').forEach(x=>x.classList.remove('active')); t.classList.add('active'); loadGallery(t.dataset.t); };
+});
+async function loadGallery(type){
+  const grid = document.getElementById('galleryGrid');
+  grid.className = ''; grid.innerHTML = 'Loading…';
+  const { data } = await sb.from('media').select('*').eq('media_type', type).order('created_at', { ascending:false });
+  if(!data || !data.length){
+    const label = type==='image' ? 'photos' : type==='video' ? 'videos' : 'voice messages';
+    grid.innerHTML = `<div class="gallery-empty">No shared ${label} yet.</div>`; return;
+  }
+  grid.innerHTML = '';
+  if(type === 'voice'){
+    data.forEach(m=>{
+      const row = document.createElement('div'); row.className='gallery-voice-row';
+      row.appendChild(buildVoicePlayer(m.file_url, null));
+      grid.appendChild(row);
+    });
+    return;
+  }
+  grid.className = 'gallery-grid';
+  data.forEach(m=>{
+    const el = document.createElement(type==='image' ? 'img' : 'video');
+    el.src = m.file_url;
+    if(type==='video'){ el.muted = true; }
+    el.onclick = ()=>{ closeOverlays(); openViewer(m.file_url, type==='video'); };
+    grid.appendChild(el);
+  });
+}
+
+function openViewer(src, isVideo){
+  const img = document.getElementById('viewerImg');
+  const vid = document.getElementById('viewerVideoEl');
+  if(isVideo){ img.classList.add('hidden'); vid.classList.remove('hidden'); vid.src = src; vid.play(); }
+  else { vid.pause(); vid.classList.add('hidden'); img.classList.remove('hidden'); img.src = src; }
+  document.getElementById('imgViewer').classList.add('show');
+}
+document.getElementById('closeViewer').onclick = ()=>{ document.getElementById('imgViewer').classList.remove('show'); document.getElementById('viewerVideoEl').pause(); };
 
 // ---- REPLY / REACT / DELETE ----
 function openReactSheet(m){ activeMsgId = m; document.getElementById('reactSheet').classList.add('show'); }
