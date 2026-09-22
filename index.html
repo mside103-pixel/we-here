@@ -103,6 +103,22 @@ input,textarea{font-family:inherit;color:inherit}
 .gallery-empty{color:var(--text-2);text-align:center;padding:34px 0;font-size:13px}
 .gallery-voice-row{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border)}
 .gallery-voice-row .vp-time{color:var(--text-2)}
+.wallpaper-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.wp-swatch{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--text-2);padding:2px;border-radius:12px}
+.wp-color{width:100%;aspect-ratio:1;border-radius:12px;border:1px solid var(--border)}
+.wp-swatch.active .wp-color{outline:2px solid var(--primary);outline-offset:2px}
+.reaction-grid{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 16px}
+.reaction-grid button{flex:0 0 auto;width:76px;height:76px;border-radius:16px;background:var(--surface-2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-size:26px;transition:.12s}
+.reaction-grid button span{font-size:10.5px;color:var(--text-2)}
+.reaction-grid button:active{transform:scale(.92)}
+.recent-row{padding:7px 2px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text-2)}
+#reactOverlay{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity .25s}
+#reactOverlay.show{opacity:1}
+.react-burst{text-align:center;position:relative}
+.react-burst .emoji{font-size:74px;display:inline-block;animation:reactPop 1.5s ease}
+.react-burst .label{margin-top:10px;font-size:14px;color:#fff;background:rgba(0,0,0,.55);padding:6px 16px;border-radius:16px}
+.react-particle{position:absolute;top:40%;animation:reactPop 1.3s ease forwards}
+@keyframes reactPop{0%{transform:scale(.4) translateY(0);opacity:0}20%{transform:scale(1.08) translateY(0);opacity:1}70%{opacity:1}100%{opacity:0;transform:scale(1) translateY(-26px)}}
 #textInput{flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:20px;background:var(--surface-2);resize:none;max-height:100px;font-size:14.5px}
 #textInput:focus{outline:none;border-color:var(--primary)}
 .round-btn{width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text-2)}
@@ -178,6 +194,7 @@ input,textarea{font-family:inherit;color:inherit}
   <div class="composer">
     <button class="round-btn" id="attachBtn">＋</button>
     <input type="file" id="fileInput" accept="image/*,video/*" class="hidden">
+    <button class="round-btn" id="reactionPanelBtn">✨</button>
     <textarea id="textInput" rows="1" placeholder="Message"></textarea>
     <button class="round-btn" id="micBtn">🎤</button>
     <button class="round-btn" id="sendBtn">➤</button>
@@ -195,6 +212,7 @@ input,textarea{font-family:inherit;color:inherit}
   <div class="sec-title">Media</div>
   <div class="sheet-item" id="openGallery"><span>Shared media</span><span>›</span></div>
   <div class="sec-title">Chat</div>
+  <div class="sheet-item" id="openWallpaper"><span>Wallpaper</span><span>›</span></div>
   <div class="sheet-item danger" id="clearChatBtn"><span>Clear chat</span><span>🗑</span></div>
   <div class="sec-title">Account</div>
   <div class="sheet-item danger" id="logoutBtn"><span>Logout</span><span>↩</span></div>
@@ -233,6 +251,38 @@ input,textarea{font-family:inherit;color:inherit}
   <div class="sheet-item danger" id="deleteFromSheet"><span>Delete for everyone</span><span>🗑</span></div>
 </div></div>
 
+<div class="overlay" id="wallpaperSheet"><div class="sheet">
+  <div class="sheet-handle"></div>
+  <h3>Wallpaper</h3>
+  <div class="wallpaper-grid" id="wallpaperGrid">
+    <button class="wp-swatch" data-w="default"><span class="wp-color" style="background:var(--surface-2)"></span>Default</button>
+    <button class="wp-swatch" data-w="blue"><span class="wp-color" style="background:#EAF2FB"></span>Blue</button>
+    <button class="wp-swatch" data-w="purple"><span class="wp-color" style="background:#F1ECFA"></span>Purple</button>
+    <button class="wp-swatch" data-w="green"><span class="wp-color" style="background:#EAF6EE"></span>Green</button>
+    <button class="wp-swatch" data-w="pink"><span class="wp-color" style="background:#FBEDF2"></span>Pink</button>
+    <button class="wp-swatch" data-w="dark"><span class="wp-color" style="background:#1B1C1F"></span>Dark</button>
+  </div>
+  <button class="btn ghost" id="uploadWallpaperBtn" style="width:100%;margin-top:14px">Upload custom wallpaper</button>
+  <input type="file" id="wallpaperInput" accept="image/*" class="hidden">
+</div></div>
+
+<div class="overlay" id="reactionPanel"><div class="sheet">
+  <div class="sheet-handle"></div>
+  <h3>Send a reaction</h3>
+  <div class="reaction-grid" id="reactionGrid">
+    <button data-r="hug" data-e="🤗">🤗<span>Hug</span></button>
+    <button data-r="heart" data-e="❤️">❤️<span>Heart</span></button>
+    <button data-r="highfive" data-e="🙌">🙌<span>High-Five</span></button>
+    <button data-r="wave" data-e="👋">👋<span>Wave</span></button>
+    <button data-r="celebrate" data-e="🎉">🎉<span>Celebrate</span></button>
+    <button data-r="laugh" data-e="😂">😂<span>Laugh</span></button>
+    <button data-r="star" data-e="⭐">⭐<span>Star</span></button>
+  </div>
+  <div class="sec-title">Recent reactions</div>
+  <div id="recentReactions"></div>
+</div></div>
+
+<div id="reactOverlay"></div>
 <div id="imgViewer"><button id="closeViewer">✕</button><img id="viewerImg"><video id="viewerVideoEl" controls playsinline class="hidden"></video></div>
 <div id="toast"></div>
 
@@ -245,6 +295,10 @@ let selectedLogin = "irfan";
 let me = null, other = null, activeMsgId = null, replyTarget = null;
 let typingTimeout = null;
 const OTHER = { irfan: "rifa", rifa: "irfan" };
+const REACTIONS = [
+  {r:'hug', e:'🤗', label:'Hug'}, {r:'heart', e:'❤️', label:'Heart'}, {r:'highfive', e:'🙌', label:'High-Five'},
+  {r:'wave', e:'👋', label:'Wave'}, {r:'celebrate', e:'🎉', label:'Celebrate'}, {r:'laugh', e:'😂', label:'Laugh'}, {r:'star', e:'⭐', label:'Star'}
+];
 
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
 function esc(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -294,6 +348,7 @@ async function enterApp(){
   const { data: od } = await sb.from('users').select('*').eq('id', OTHER[me.id]).single();
   other = od;
   renderOtherHeader();
+  applyWallpaper(me.wallpaper || 'default');
   await sb.from('users').update({ online:true, last_seen:new Date().toISOString() }).eq('id', me.id);
   loadMessages();
   subscribeRealtime();
@@ -589,6 +644,84 @@ document.getElementById('logoutBtn').onclick = async ()=>{
   location.reload();
 };
 
+// ---- WALLPAPER ----
+document.getElementById('openWallpaper').onclick = ()=>{
+  closeOverlays();
+  document.querySelectorAll('.wp-swatch').forEach(b=> b.classList.toggle('active', b.dataset.w === (me.wallpaper||'default')));
+  document.getElementById('wallpaperSheet').classList.add('show');
+};
+document.querySelectorAll('.wp-swatch').forEach(b=>{ b.onclick = ()=> setWallpaper(b.dataset.w); });
+document.getElementById('uploadWallpaperBtn').onclick = ()=> document.getElementById('wallpaperInput').click();
+document.getElementById('wallpaperInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0]; if(!file) return;
+  toast('Uploading wallpaper…');
+  const path = `wallpapers/${me.id}_${Date.now()}`;
+  const { error } = await sb.storage.from('media').upload(path, file);
+  if(error){ toast('Upload failed. Please try again.'); return; }
+  const { data: pub } = sb.storage.from('media').getPublicUrl(path);
+  await setWallpaper(pub.publicUrl);
+  e.target.value = '';
+});
+async function setWallpaper(w){
+  me.wallpaper = w;
+  await sb.from('users').update({ wallpaper: w }).eq('id', me.id);
+  applyWallpaper(w);
+  closeOverlays();
+  toast('Wallpaper updated');
+}
+function applyWallpaper(w){
+  const chat = document.getElementById('chat');
+  const presets = { default:'var(--bg)', blue:'#EAF2FB', purple:'#F1ECFA', green:'#EAF6EE', pink:'#FBEDF2', dark:'#1B1C1F' };
+  if(presets[w]){ chat.style.backgroundImage = 'none'; chat.style.background = presets[w]; }
+  else { chat.style.background = 'var(--bg)'; chat.style.backgroundImage = `url(${w})`; chat.style.backgroundSize = 'cover'; chat.style.backgroundPosition = 'center'; }
+}
+
+// ---- LIVE REACTIONS ----
+document.getElementById('reactionPanelBtn').onclick = ()=>{ document.getElementById('reactionPanel').classList.add('show'); loadRecentReactions(); };
+document.querySelectorAll('#reactionGrid button').forEach(b=>{
+  b.onclick = async ()=>{
+    const type = b.dataset.r, emoji = b.dataset.e;
+    closeOverlays();
+    await sb.from('reaction_events').insert({ sender_id: me.id, receiver_id: other.id, reaction_type: type });
+    showReactionOverlay('You', type, emoji);
+  };
+});
+async function loadRecentReactions(){
+  const box = document.getElementById('recentReactions');
+  box.innerHTML = 'Loading…';
+  const { data } = await sb.from('reaction_events').select('*').order('created_at', { ascending:false }).limit(5);
+  if(!data || !data.length){ box.innerHTML = '<div class="gallery-empty">No reactions yet.</div>'; return; }
+  box.innerHTML = '';
+  data.forEach(ev=>{
+    const meta = REACTIONS.find(x=>x.r===ev.reaction_type) || { e:'✨', label:ev.reaction_type };
+    const row = document.createElement('div'); row.className='recent-row';
+    row.textContent = `${ev.sender_id===me.id?'You':other.display_name} → ${meta.e} ${meta.label}`;
+    box.appendChild(row);
+  });
+}
+function showReactionOverlay(senderName, type, emoji){
+  const ov = document.getElementById('reactOverlay');
+  ov.innerHTML = '';
+  const burst = document.createElement('div'); burst.className='react-burst';
+  const e = document.createElement('div'); e.className='emoji'; e.textContent = emoji;
+  const label = document.createElement('div'); label.className='label'; label.textContent = `${senderName} sent a ${emoji}`;
+  burst.append(e, label);
+  if(type === 'celebrate' || type === 'heart'){
+    for(let i=0;i<5;i++){
+      const p = document.createElement('span'); p.className='react-particle';
+      p.textContent = type==='celebrate' ? ['🎉','✨','🎊'][i%3] : '❤️';
+      p.style.left = (30 + Math.random()*40) + '%';
+      p.style.fontSize = (16 + Math.random()*10) + 'px';
+      p.style.animationDelay = (i*0.08) + 's';
+      burst.appendChild(p);
+    }
+  }
+  ov.appendChild(burst);
+  ov.classList.add('show');
+  clearTimeout(window._reactHide);
+  window._reactHide = setTimeout(()=> ov.classList.remove('show'), 1600);
+}
+
 // ---- REALTIME ----
 function subscribeRealtime(){
   sb.channel('db-changes')
@@ -596,6 +729,11 @@ function subscribeRealtime(){
     .on('postgres_changes', { event:'*', schema:'public', table:'reactions' }, ()=> loadMessages())
     .on('postgres_changes', { event:'*', schema:'public', table:'media' }, ()=>{})
     .on('postgres_changes', { event:'UPDATE', schema:'public', table:'users', filter:`id=eq.${other.id}` }, (payload)=>{ other = payload.new; renderOtherHeader(); })
+    .on('postgres_changes', { event:'INSERT', schema:'public', table:'reaction_events', filter:`receiver_id=eq.${me.id}` }, (payload)=>{
+      const ev = payload.new;
+      const meta = REACTIONS.find(x=>x.r===ev.reaction_type) || { e:'✨' };
+      showReactionOverlay(other.display_name, ev.reaction_type, meta.e);
+    })
     .subscribe();
 
   const presence = sb.channel('typing-'+[me.id,other.id].sort().join('-'));
